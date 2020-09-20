@@ -1,0 +1,110 @@
+CREDIT : https://c17hawke.github.io/tfod-setup/
+
+01.  Download the repo: https://github.com/tensorflow/models/tree/v1.13.0
+
+02.  Download the 'faster_rcnn_inception_v2_coco' model : http://download.tensorflow.org/models/object_detection/faster_rcnn_inception_v2_coco_2018_01_28.tar.gz
+
+02.  (or) any other model of your choice from tf1 model zoo : https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf1_detection_zoo.md
+
+03.  Download Utils : https://drive.google.com/file/d/12F5oGAuQg7qBM_267TCMt_rlorV-M7gf/view
+
+04.  Download LabelImg : https://tzutalin.github.io/labelImg/
+     For windows, download v1.8.0; For ubuntu, download from labelimg github repo.
+
+05.  Extract all the above folders. For our ease, we can rename folders to 'models' and 'faster_rcnn'.
+
+06.  The only folder in 'models' important for our task is 'research' folder. Delete the rest.
+
+07.  Create new virtual env using conda : conda create -n tfod_tf1p14gpu python=3.6
+     And activate : conda activate tfod_tf1p14gpu
+     You can check if the env is isolated : pip freeze
+
+08.  Install packages : pip install pillow lxml Cython contextlib2 jupyter matplotlib pandas opencv-python tensorflow-gpu==1.14.0
+
+08.  (or if no gpu) : pip install pillow lxml Cython contextlib2 jupyter matplotlib pandas opencv-python tensorflow==1.14.0
+
+09.  Install protobuf : conda install -c anaconda protobuf
+
+10.  Change current directory to 'models\research' folder.
+
+11.  We need to change .proto files to .py in folder "models\research\object_detection\protos".
+     Run the command : protoc object_detection/protos/*.proto --python_out=.
+
+12.  Now we need to install object detection libraries : python setup.py install
+
+13.  Open jupyter notebook to verify if everything got correctly installed.
+     Go to 'object_detection' folder and open the notebook 'object_detection_tutorial'. Run it.
+
+14.  Move 'faster_rcnn' folder into 'research' folder.
+     Move the contents of 'utils' folder into 'research' folder.
+
+(optional) If images don't have bboxes then keep all images in one folder and use LabelImg(Pascal/VOC option --> Open Dir) to annotate images(and save as xml) in that folder.
+
+15.  Our train data is in "models\research\images\train", images and xml files.
+     Now we need to convert all xml files to a single csv file : python xml_to_csv.py
+     
+16.  Now we convert csv files to tfrecord(tf can understand this binary file, faster to handle and smaller in size).
+     For train data : python generate_tfrecord.py --csv_input=images/train_labels.csv --image_dir=images/train --output_path=train.record
+     For test data : python generate_tfrecord.py --csv_input=images/test_labels.csv --image_dir=images/test --output_path=test.record
+
+(optional) If custom location of data with custom classes, change "generate_tfrecord" code for those classes and use custom data location in above commands.
+
+17.  Move 'train.py' from "models\research\object_detection\legacy" folder to 'research' folder.
+
+18.  We need the config file for our model architecture. Copy it from "research\object_detection\samples\configs" to the "research\training" folder.
+     The file we need is "faster_rcnn_inception_v2_coco.config". The name of classes for training is in file "labelmap.pbtxt" in this same location. Change it if needed.
+     The label_map files for standard datasets can be found in the "object_detection\data" folder.
+
+19.  Do below changes in "faster_rcnn_inception_v2_coco.config" file:
+     a> num_classes: 90  --> num_classes: 6
+     b> fine_tune_checkpoint: "PATH_TO_BE_CONFIGURED/model.ckpt" --> fine_tune_checkpoint: "faster_rcnn/model.ckpt"
+     c> train_input_reader: ...
+        ...input_path: "PATH_TO_BE_CONFIGURED/mscoco_train.record-?????-of-00100"
+          --> input_path: "train.record"
+     d> train_input_reader: ...
+        ...label_map_path: "PATH_TO_BE_CONFIGURED/mscoco_labelmap.pbtxt"
+          --> label_map_path: "training/labelmap.pbtxt"
+     e> eval_input_reader: ...
+        ...input_path: "PATH_TO_BE_CONFIGURED/mscoco_val.record-?????-of-00010"
+          --> input_path: "test.record"
+     f> eval_input_reader: ...
+        ...label_map_path: "PATH_TO_BE_CONFIGURED/mscoco_label_map.pbtxt"
+          --> label_map_path: "training/labelmap.pbtxt"
+     (optional)> num_steps: 200000 --> num_steps: 1000
+
+20.  Copy 'deployment' and 'nets' folders from "models\research\slim" folder to "research" folder.
+
+21.  Start training with : python train.py --logtostderr --train_dir=training/ --pipeline_config_path=training/faster_rcnn_inception_v2_coco.config
+
+22.  Training can be interrupted and then same command can continue training from the last .ckpt file that was created in training folder.
+
+
+
+Steps for inference/prediction : 
+
+23.  Copy 'export_inference_graph.py' from "research\object_detection" folder to "research" folder.
+
+24.  Now run command with last checkpoint-id(234 in my case) : python export_inference_graph.py --input_type image_tensor --pipeline_config_path training/faster_rcnn_inception_v2_coco.config --trained_checkpoint_prefix training/model.ckpt-234 --output_directory my_model
+
+25.  Above command will create the folder 'my_model' with inference graph output(generally called the graph file or frozen file) with name "frozen_inference_graph,pb". This trained model can now be used to do predictions.
+
+26.  Copy the jupyter notebook from "object_detection" folder to "research" folder. This is where i will do the predictions. Launch notebook.
+
+27.  Make a new folder 'test_images' with images on which model will predict.
+
+28.  Few changes in notebook:
+     a> from utils --> from object_detection.utils
+     b> MODEL_NAME = 'ssd_mobilenet_v1_coco_2017_11_17' --> MODEL_NAME = 'my_model'
+     c> comment the lines with 'MODEL_FILE' and 'DOWNLOAD_BASE' variable assignments.
+     d> os.path.join('data', 'mscoco_label_map.pbtxt') --> os.path.join('training', 'labelmap.pbtxt')
+     e> comment the entire download model cell.
+     (optional)> I used 5 images to test so this modification is in detection:
+        for i in range(1, 3) --> for i in range(1, 6)
+
+
+
+Deleting unimportant folders :
+
+29.  Leave only these folders in 'research' : deployment, faster_cnn, images, my_model, nets, object_detection, object_detection.egg, slim, test_images, training. And leave all the files.
+
+30.  Train the model to a higher epoch and get better results.
