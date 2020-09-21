@@ -17,3 +17,4 @@
  ![pred5](/sample_predictions/prediction5.png)
 <br><br>
 <i>Note : The file "models\research\training\model.ckpt-1000.data-00000-of-00001" has been zipped to commit as it was over 100MB.</i>
+![Image of Yaktocat](https://octodex.github.com/images/yaktocat.png)
