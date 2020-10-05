@@ -80,7 +80,7 @@ CREDIT : https://c17hawke.github.io/tfod-setup/
 
 
 
-Steps for inference/prediction : 
+Steps for inference/prediction :
 
 23.  Copy 'export_inference_graph.py' from "research\object_detection" folder to "research" folder.
 
